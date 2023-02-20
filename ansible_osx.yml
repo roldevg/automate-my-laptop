@@ -33,9 +33,11 @@
         - telegram
         - zoom
 
+
     - name: "Install homebrew packages"
       community.general.homebrew:
         name: [
+          'asdf',
           'mas',
         ]
         state: present
@@ -45,3 +47,59 @@
       shell: mas install {{ item }}
       with_items:
         - 497799835 # xcode    
+
+    - name: Get the path to ZSH
+      become: false
+      local_action: command which zsh
+      register: zsh_path
+
+    - name: "Ensure homebrew zsh is in allowed shells"
+      lineinfile:
+        path: /etc/shells
+        line: "{{ zsh_path.stdout }}"
+      become: true
+
+    - name: Install Oh My ZSH
+      shell: sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+      args:
+        creates: "/Users/{{ lookup('env', 'USER') }}/.oh-my-zsh"
+
+    - name: Set ZSH as the default shell
+      shell: chsh -s $(which zsh) {{ lookup('env', 'USER') }}
+      become: true
+
+    - name: "Create a default ZSH configuration"
+      template:
+        src: templates/.zshrc.j2
+        dest: /Users/{{ lookup('env', 'USER') }}/.zshrc
+        owner: "{{ lookup('env', 'USER') }}"
+        force: yes    
+
+    - git:
+        repo: https://github.com/asdf-vm/asdf.git
+        dest: "/Users/{{ lookup('env', 'USER') }}/.asdf"
+        version: v0.11.1
+
+    - name: "Create a default asdf configuration"
+      template:
+        src: templates/.asdfrc.j2
+        dest: /Users/{{ lookup('env', 'USER') }}/.asdfrc
+        owner: "{{ lookup('env', 'USER') }}"
+        force: yes
+
+    - name: "Install asdf plugins"
+      shell: |
+        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
+        asdf plugin-add {{ item }} || exit 0
+      with_items:
+        - nodejs
+
+    - name: "Install default node"
+      shell: |
+        source /Users/{{ lookup('env', 'USER') }}/.asdf/asdf.sh
+        bash /Users/{{ lookup('env', 'USER') }}/.asdf/plugins/nodejs/bin/import-release-team-keyring
+        asdf install nodejs 16.17.0
+        asdf global nodejs 16.17.0
+
+    - name: re-generate bins now we've installed some yarn packages
+      shell: asdf reshim nodejs    
