@@ -8,7 +8,8 @@ Set up laptop from scratch
 - pip3
 - Ansible
 - Google Chrome
-- NodeJS 18
+- ZSH shell
+- NodeJS 16.17.0
 
 ### Communications
 - Telegram
